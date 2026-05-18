@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quiz System — Вхід</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body class="auth-page">
+
+<div class="auth-box">
+  <div class="auth-logo">
+    <div class="logo-icon">📝</div>
+    <h1>Quiz System</h1>
+    <p>Система автоматизованого тестування</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-login"    onclick="switchTab('login')">Вхід</button>
+    <button class="tab-btn"        id="tab-register" onclick="switchTab('register')">Реєстрація</button>
+  </div>
+
+  <!-- LOGIN FORM -->
+  <div id="form-login">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="example@kpi.ua" autocomplete="email"/>
+    </div>
+    <div class="form-group">
+      <label>Пароль</label>
+      <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <div class="msg error" id="login-err"></div>
+    <button class="btn btn-primary btn-block btn-lg mt-2" onclick="handleLogin()">
+      Увійти
+    </button>
+  </div>
+
+  <!-- REGISTER FORM -->
+  <div id="form-register" style="display:none">
+    <div class="form-group">
+      <label>Повне ім'я (ПІБ)</label>
+      <input type="text" id="reg-name" placeholder="Іваненко Іван Іванович"/>
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="reg-email" placeholder="example@kpi.ua"/>
+    </div>
+    <div class="form-group">
+      <label>Пароль</label>
+      <input type="password" id="reg-pass" placeholder="Мінімум 6 символів"/>
+    </div>
+    <div class="form-group">
+      <label>Роль</label>
+      <select id="reg-role">
+        <option value="student">Студент</option>
+        <option value="teacher">Викладач</option>
+      </select>
+    </div>
+    <div class="msg error"   id="reg-err"></div>
+    <div class="msg success" id="reg-ok"></div>
+    <button class="btn btn-primary btn-block btn-lg mt-2" onclick="handleRegister()">
+      Зареєструватися
+    </button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toasts"></div>
+
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script>
+  // Якщо вже залогінений — редіректимо
+  if (Auth.isLoggedIn()) {
+    const u = Auth.getUser();
+    location.href = u?.role === 'teacher' ? 'teacher.html' : 'student.html';
+  }
+
+  function switchTab(tab) {
+    document.getElementById('form-login').style.display    = tab === 'login'    ? '' : 'none';
+    document.getElementById('form-register').style.display = tab === 'register' ? '' : 'none';
+    document.getElementById('tab-login').classList.toggle('active',    tab === 'login');
+    document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  }
+
+  async function handleLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const pass  = document.getElementById('login-pass').value;
+    const errEl = document.getElementById('login-err');
+    errEl.style.display = 'none';
+
+    if (!email || !pass) { showErr(errEl, 'Заповніть всі поля'); return; }
+
+    try {
+      const data = await api.login(email, pass);
+      Auth.setToken(data.access_token);
+      const me = await api.getMe();
+      Auth.setUser(me);
+      location.href = me.role === 'teacher' ? 'teacher.html' : 'student.html';
+    } catch(e) {
+      showErr(errEl, e.message);
+    }
+  }
+
+  async function handleRegister() {
+    const name  = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const pass  = document.getElementById('reg-pass').value;
+    const role  = document.getElementById('reg-role').value;
+    const errEl = document.getElementById('reg-err');
+    const okEl  = document.getElementById('reg-ok');
+    errEl.style.display = 'none';
+    okEl.style.display  = 'none';
+
+    if (!name || !email || !pass) { showErr(errEl, 'Заповніть всі поля'); return; }
+    if (pass.length < 6)          { showErr(errEl, 'Пароль мінімум 6 символів'); return; }
+
+    try {
+      await api.register({ full_name: name, email, password: pass, role });
+      okEl.textContent    = 'Реєстрація успішна! Тепер увійдіть.';
+      okEl.style.display  = 'block';
+      setTimeout(() => switchTab('login'), 1500);
+    } catch(e) {
+      showErr(errEl, e.message);
+    }
+  }
+
+  function showErr(el, msg) {
+    el.textContent  = msg;
+    el.style.display = 'block';
+  }
+
+  // Enter key support
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const loginVisible = document.getElementById('form-login').style.display !== 'none';
+    if (loginVisible) handleLogin(); else handleRegister();
+  });
+</script>
+</body>
+</html>

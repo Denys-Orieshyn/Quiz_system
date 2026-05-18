@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quiz System — Викладач</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text">📝 Quiz System</div>
+      <div class="logo-sub">Панель викладача</div>
+    </div>
+
+    <div class="sidebar-section-title">Меню</div>
+    <nav>
+      <button class="btn btn-ghost w-full" style="justify-content:flex-start;padding:.65rem 1.5rem;border-radius:0;color:#94a3b8;"
+              onclick="showSection('my-tests')" id="nav-my-tests">
+        📋 Мої тести
+      </button>
+      <button class="btn btn-ghost w-full" style="justify-content:flex-start;padding:.65rem 1.5rem;border-radius:0;color:#94a3b8;"
+              onclick="showSection('stats')" id="nav-stats">
+        📊 Статистика
+      </button>
+    </nav>
+
+    <div class="sidebar-user">
+      <div class="avatar" id="sidebar-avatar">?</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-name">…</div>
+        <div class="user-role">Викладач</div>
+      </div>
+      <button class="logout-btn" onclick="Auth.logout()" title="Вийти">⏏</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title" id="section-title">Мої тести</span>
+      <button class="btn btn-primary btn-sm" id="topbar-action" onclick="openCreateTestModal()">
+        + Новий тест
+      </button>
+    </div>
+
+    <div class="content">
+
+      <!-- ══ SECTION: My Tests ══════════════════════════════════ -->
+      <div id="section-my-tests">
+        <div id="tests-list"></div>
+      </div>
+
+      <!-- ══ SECTION: Statistics ════════════════════════════════ -->
+      <div id="section-stats" style="display:none">
+        <div class="card">
+          <div class="card-header">
+            <h3>Статистика проходжень</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label>Оберіть тест</label>
+              <select id="stats-test-select" onchange="loadStats()">
+                <option value="">— оберіть тест —</option>
+              </select>
+            </div>
+            <div id="stats-table-wrap"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- ══ MODAL: Create / Edit Test ════════════════════════════════ -->
+<div class="modal-overlay" id="modal-test">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-test-title">Новий тест</h3>
+      <button class="modal-close" onclick="closeModal('modal-test')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-test-id"/>
+      <div class="form-group">
+        <label>Назва тесту *</label>
+        <input type="text" id="test-title" placeholder="Введіть назву тесту"/>
+      </div>
+      <div class="form-group">
+        <label>Категорія</label>
+        <input type="text" id="test-category" placeholder="Наприклад: Програмування"/>
+      </div>
+      <div class="form-group">
+        <label>Опис</label>
+        <textarea id="test-desc" placeholder="Короткий опис тесту"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Часовий ліміт (хвилини) *</label>
+        <input type="number" id="test-time" min="1" max="180" value="20"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-test')">Скасувати</button>
+      <button class="btn btn-primary" onclick="saveTest()">Зберегти</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Questions ═════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-questions">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <h3>Питання тесту: <span id="q-modal-test-name"></span></h3>
+      <button class="modal-close" onclick="closeModal('modal-questions')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="questions-list" class="mb-2"></div>
+      <hr style="margin-bottom:1rem;border-color:var(--border)"/>
+      <h4 class="mb-1" style="font-size:.9rem">Додати нове питання</h4>
+
+      <div class="form-group">
+        <label>Текст питання *</label>
+        <textarea id="q-text" placeholder="Введіть текст питання" rows="2"></textarea>
+      </div>
+
+      <label style="font-size:.83rem;font-weight:600;margin-bottom:.4rem;display:block">
+        Варіанти відповідей * <span style="color:var(--text-muted);font-weight:400">(відмітьте правильну ✓)</span>
+      </label>
+      <div id="answers-builder"></div>
+      <button class="btn btn-outline btn-sm mt-1" onclick="addAnswerRow()">+ Додати варіант</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-questions')">Закрити</button>
+      <button class="btn btn-success" onclick="saveQuestion()">Додати питання</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toasts"></div>
+
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // ── Guard ──────────────────────────────────────────────────────
+  guardRole('teacher');
+
+  // ── Init ───────────────────────────────────────────────────────
+  let currentQTestId = null;
+
+  (async () => {
+    const u = Auth.getUser();
+    document.getElementById('sidebar-name').textContent   = u.full_name;
+    document.getElementById('sidebar-avatar').textContent = u.full_name[0].toUpperCase();
+    await loadMyTests();
+    initNavHighlight('nav-my-tests');
+  })();
+
+  // ── Navigation ─────────────────────────────────────────────────
+  function showSection(name) {
+    ['my-tests','stats'].forEach(s => {
+      document.getElementById(`section-${s}`).style.display = s === name ? '' : 'none';
+    });
+    const titles   = { 'my-tests': 'Мої тести', 'stats': 'Статистика' };
+    const actions  = { 'my-tests': true, 'stats': false };
+    document.getElementById('section-title').textContent     = titles[name] || '';
+    document.getElementById('topbar-action').style.display   = actions[name] ? '' : 'none';
+
+    ['my-tests','stats'].forEach(s => {
+      document.getElementById(`nav-${s}`)?.classList.toggle('active-nav', s === name);
+    });
+
+    if (name === 'stats') populateStatsSelect();
+  }
+
+  function initNavHighlight(activeId) {
+    document.querySelectorAll('.sidebar nav button').forEach(b =>
+      b.style.color = b.id === activeId ? '#fff' : '#94a3b8'
+    );
+  }
+
+  // ── Load my tests ───────────────────────────────────────────────
+  async function loadMyTests() {
+    const tests = await api.getMyTests();
+    const el    = document.getElementById('tests-list');
+
+    if (!tests.length) {
+      el.innerHTML = `<div class="empty">
+        <div class="empty-icon">📋</div>
+        <h3>Тестів ще немає</h3>
+        <p>Натисніть «Новий тест» щоб почати</p>
+      </div>`;
+      return;
+    }
+
+    el.innerHTML = `
+      <div class="mb-2 flex justify-between items-center">
+        <span class="text-muted">Всього тестів: <b>${tests.length}</b></span>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Назва</th>
+                <th>Категорія</th>
+                <th>Час (хв)</th>
+                <th>Статус</th>
+                <th>Дії</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tests.map((t, i) => `
+                <tr>
+                  <td>${i + 1}</td>
+                  <td><b>${esc(t.title)}</b></td>
+                  <td><span class="badge badge-blue">${esc(t.category || '—')}</span></td>
+                  <td>${Math.round(t.time_limit / 60)} хв</td>
+                  <td>
+                    <span class="badge ${t.is_active ? 'badge-green' : 'badge-gray'}">
+                      ${t.is_active ? 'Активний' : 'Прихований'}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="flex gap-1">
+                      <button class="btn btn-outline btn-sm" onclick="openQuestionsModal(${t.id}, '${esc(t.title)}')">✏️ Питання</button>
+                      <button class="btn btn-outline btn-sm" onclick="openEditTest(${t.id})">🔧 Ред.</button>
+                      <button class="btn btn-outline btn-sm" onclick="toggleTest(${t.id})">${t.is_active ? '🙈 Сховати' : '👁 Показати'}</button>
+                      <button class="btn btn-danger  btn-sm" onclick="deleteTest(${t.id})">🗑</button>
+                    </div>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  // ── Create / Edit Test ─────────────────────────────────────────
+  function openCreateTestModal() {
+    document.getElementById('modal-test-title').textContent = 'Новий тест';
+    document.getElementById('edit-test-id').value  = '';
+    document.getElementById('test-title').value    = '';
+    document.getElementById('test-category').value = '';
+    document.getElementById('test-desc').value     = '';
+    document.getElementById('test-time').value     = 20;
+    openModal('modal-test');
+  }
+
+  async function openEditTest(id) {
+    const t = await api.getTest(id);
+    document.getElementById('modal-test-title').textContent = 'Редагувати тест';
+    document.getElementById('edit-test-id').value  = t.id;
+    document.getElementById('test-title').value    = t.title;
+    document.getElementById('test-category').value = t.category || '';
+    document.getElementById('test-desc').value     = t.description || '';
+    document.getElementById('test-time').value     = Math.round(t.time_limit / 60);
+    openModal('modal-test');
+  }
+
+  async function saveTest() {
+    const id       = document.getElementById('edit-test-id').value;
+    const title    = document.getElementById('test-title').value.trim();
+    const category = document.getElementById('test-category').value.trim();
+    const desc     = document.getElementById('test-desc').value.trim();
+    const minutes  = parseInt(document.getElementById('test-time').value);
+
+    if (!title)          { toast('Введіть назву тесту', 'error'); return; }
+    if (!minutes || minutes < 1) { toast('Введіть коректний час', 'error'); return; }
+
+    const data = { title, category, description: desc, time_limit: minutes * 60 };
+    try {
+      if (id) await api.updateTest(parseInt(id), data);
+      else    await api.createTest(data);
+      closeModal('modal-test');
+      toast(id ? 'Тест оновлено' : 'Тест створено', 'success');
+      await loadMyTests();
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  async function toggleTest(id) {
+    try {
+      const res = await api.toggleTest(id);
+      toast(res.is_active ? 'Тест активовано' : 'Тест приховано', 'success');
+      await loadMyTests();
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  async function deleteTest(id) {
+    if (!confirm('Видалити тест разом з усіма питаннями? Цю дію не можна відмінити.')) return;
+    try {
+      await api.deleteTest(id);
+      toast('Тест видалено', 'success');
+      await loadMyTests();
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  // ── Questions Modal ────────────────────────────────────────────
+  async function openQuestionsModal(testId, testName) {
+    currentQTestId = testId;
+    document.getElementById('q-modal-test-name').textContent = testName;
+    resetQuestionForm();
+    await renderQuestionsList(testId);
+    openModal('modal-questions');
+  }
+
+  async function renderQuestionsList(testId) {
+    const qs  = await api.getQuestions(testId);
+    const el  = document.getElementById('questions-list');
+
+    if (!qs.length) {
+      el.innerHTML = `<div class="empty" style="padding:1.5rem"><div class="empty-icon" style="font-size:2rem">❓</div><p>Питань ще немає</p></div>`;
+      return;
+    }
+
+    el.innerHTML = qs.map((q, i) => `
+      <div class="card mb-1" style="border:none;background:var(--bg);padding:.75rem 1rem;border-radius:var(--radius)">
+        <div class="flex justify-between items-center mb-1">
+          <b style="font-size:.88rem">${i + 1}. ${esc(q.text)}</b>
+          <button class="btn btn-danger btn-sm" onclick="deleteQuestion(${q.id})">🗑</button>
+        </div>
+        <div class="flex" style="flex-wrap:wrap;gap:.35rem">
+          ${q.answers.map(a => `
+            <span class="badge ${a.is_correct ? 'badge-green' : 'badge-gray'}">
+              ${a.is_correct ? '✓ ' : ''}${esc(a.text)}
+            </span>`).join('')}
+        </div>
+      </div>`).join('');
+  }
+
+  function resetQuestionForm() {
+    document.getElementById('q-text').value = '';
+    const builder = document.getElementById('answers-builder');
+    builder.innerHTML = '';
+    // 4 порожніх рядки за замовчуванням
+    for (let i = 0; i < 4; i++) addAnswerRow();
+  }
+
+  function addAnswerRow() {
+    const row = document.createElement('div');
+    row.className = 'answer-row';
+    row.innerHTML = `
+      <input type="checkbox" title="Правильна відповідь"/>
+      <input type="text" placeholder="Варіант відповіді"/>
+      <button class="btn btn-ghost btn-sm" style="color:var(--danger);padding:.3rem .5rem"
+              onclick="this.parentElement.remove()">✕</button>`;
+    document.getElementById('answers-builder').appendChild(row);
+  }
+
+  async function saveQuestion() {
+    const text = document.getElementById('q-text').value.trim();
+    if (!text) { toast('Введіть текст питання', 'error'); return; }
+
+    const rows    = document.querySelectorAll('#answers-builder .answer-row');
+    const answers = [];
+    rows.forEach(row => {
+      const checked = row.querySelector('input[type="checkbox"]').checked;
+      const val     = row.querySelector('input[type="text"]').value.trim();
+      if (val) answers.push({ text: val, is_correct: checked });
+    });
+
+    if (answers.length < 2)               { toast('Додайте мінімум 2 варіанти відповідей', 'error'); return; }
+    if (!answers.some(a => a.is_correct)) { toast('Позначте хоча б одну правильну відповідь', 'error'); return; }
+
+    try {
+      await api.addQuestion(currentQTestId, {
+        text, order_number: 0, answers
+      });
+      toast('Питання додано', 'success');
+      resetQuestionForm();
+      await renderQuestionsList(currentQTestId);
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  async function deleteQuestion(qId) {
+    if (!confirm('Видалити питання?')) return;
+    try {
+      await api.deleteQuestion(qId);
+      toast('Питання видалено', 'success');
+      await renderQuestionsList(currentQTestId);
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  // ── Statistics ──────────────────────────────────────────────────
+  async function populateStatsSelect() {
+    const tests = await api.getMyTests();
+    const sel   = document.getElementById('stats-test-select');
+    sel.innerHTML = '<option value="">— оберіть тест —</option>' +
+      tests.map(t => `<option value="${t.id}">${esc(t.title)}</option>`).join('');
+  }
+
+  async function loadStats() {
+    const id  = document.getElementById('stats-test-select').value;
+    const el  = document.getElementById('stats-table-wrap');
+    if (!id) { el.innerHTML = ''; return; }
+
+    const rows = await api.getStatistics(parseInt(id));
+    if (!rows.length) {
+      el.innerHTML = `<div class="empty" style="padding:1.5rem"><p>Ще ніхто не проходив цей тест</p></div>`;
+      return;
+    }
+
+    const avg = (rows.reduce((s, r) => s + r.score_percent, 0) / rows.length).toFixed(1);
+    el.innerHTML = `
+      <p class="text-muted mb-2">Проходжень: <b>${rows.length}</b> &nbsp;|&nbsp; Середній бал: <b>${avg}%</b></p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Студент</th><th>Результат</th><th>Дата</th></tr></thead>
+          <tbody>
+            ${rows.map((r, i) => {
+              const cls = r.score_percent >= 70 ? 'score-cell-high'
+                        : r.score_percent >= 50 ? 'score-cell-mid' : 'score-cell-low';
+              return `<tr>
+                <td>${i + 1}</td>
+                <td>${esc(r.student_name)}</td>
+                <td class="${cls}">${r.score_percent}%</td>
+                <td>${new Date(r.completed_at).toLocaleString('uk-UA')}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+</script>
+</body>
+</html>

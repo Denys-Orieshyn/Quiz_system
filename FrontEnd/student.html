@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quiz System — Студент</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text">📝 Quiz System</div>
+      <div class="logo-sub">Панель студента</div>
+    </div>
+
+    <div class="sidebar-section-title">Меню</div>
+    <nav>
+      <button class="btn btn-ghost w-full"
+              style="justify-content:flex-start;padding:.65rem 1.5rem;border-radius:0;color:#94a3b8"
+              onclick="showSection('tests')" id="nav-tests">
+        📋 Доступні тести
+      </button>
+      <button class="btn btn-ghost w-full"
+              style="justify-content:flex-start;padding:.65rem 1.5rem;border-radius:0;color:#94a3b8"
+              onclick="showSection('history')" id="nav-history">
+        📊 Мої результати
+      </button>
+    </nav>
+
+    <div class="sidebar-user">
+      <div class="avatar" id="sidebar-avatar">?</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-name">…</div>
+        <div class="user-role">Студент</div>
+      </div>
+      <button class="logout-btn" onclick="Auth.logout()" title="Вийти">⏏</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title" id="section-title">Доступні тести</span>
+      <div class="search-wrap" id="search-wrap">
+        <input class="search-input" id="search-input"
+               placeholder="🔍 Пошук тесту..."
+               oninput="onSearch()" autocomplete="off"/>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ══ SECTION: Tests ═══════════════════════════════════════ -->
+      <div id="section-tests">
+        <div class="tests-grid" id="tests-grid">
+          <div class="empty">
+            <div class="empty-icon">⏳</div>
+            <h3>Завантаження…</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SECTION: My Results ══════════════════════════════════ -->
+      <div id="section-history" style="display:none">
+        <div class="card">
+          <div class="card-header"><h3>Мої результати проходжень</h3></div>
+          <div class="card-body" id="history-body">
+            <div class="empty"><div class="empty-icon">📊</div><h3>Завантаження…</h3></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Test Info ════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-test-info">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="info-title">Інформація про тест</h3>
+      <button class="modal-close" onclick="closeModal('modal-test-info')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="mb-2">
+        <p class="text-muted text-sm mb-1">Категорія</p>
+        <p id="info-category" class="fw-700"></p>
+      </div>
+      <div class="mb-2">
+        <p class="text-muted text-sm mb-1">Опис</p>
+        <p id="info-desc"></p>
+      </div>
+      <div style="background:var(--primary-light);border-radius:var(--radius);padding:1rem;margin-top:1rem">
+        <div class="flex justify-between">
+          <div>
+            <p class="text-muted text-sm">Часовий ліміт</p>
+            <p class="fw-700" style="font-size:1.2rem" id="info-time"></p>
+          </div>
+          <div style="font-size:2.5rem">⏱</div>
+        </div>
+      </div>
+      <p class="text-muted text-sm mt-2">
+        Після натискання «Розпочати» таймер відразу запускається.
+        Можна завершити достроково.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-test-info')">Скасувати</button>
+      <button class="btn btn-primary" id="start-btn" onclick="startTest()">▶ Розпочати тест</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toasts"></div>
+
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+  guardRole('student');
+
+  let selectedTestId = null;
+  let searchTimer    = null;
+
+  // ── Init ───────────────────────────────────────────────────────
+  (async () => {
+    const u = Auth.getUser();
+    document.getElementById('sidebar-name').textContent   = u.full_name;
+    document.getElementById('sidebar-avatar').textContent = u.full_name[0].toUpperCase();
+    await loadTests();
+  })();
+
+  // ── Navigation ─────────────────────────────────────────────────
+  function showSection(name) {
+    document.getElementById('section-tests').style.display   = name === 'tests'   ? '' : 'none';
+    document.getElementById('section-history').style.display = name === 'history' ? '' : 'none';
+    document.getElementById('search-wrap').style.display     = name === 'tests'   ? '' : 'none';
+
+    const titles = { tests: 'Доступні тести', history: 'Мої результати' };
+    document.getElementById('section-title').textContent = titles[name];
+
+    if (name === 'history') loadHistory();
+  }
+
+  // ── Load Tests ─────────────────────────────────────────────────
+  async function loadTests(search = '') {
+    const grid = document.getElementById('tests-grid');
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">⏳</div><h3>Завантаження…</h3></div>`;
+
+    const tests = await api.getTests(search);
+
+    if (!tests.length) {
+      grid.innerHTML = `<div class="empty">
+        <div class="empty-icon">📭</div>
+        <h3>Тестів не знайдено</h3>
+        <p>Спробуйте змінити запит пошуку</p>
+      </div>`;
+      return;
+    }
+
+    grid.innerHTML = tests.map(t => `
+      <div class="test-card" onclick="openTestInfo(${t.id})">
+        <div class="test-card-title">${esc(t.title)}</div>
+        <div class="test-card-desc">${esc(t.description || 'Опис відсутній')}</div>
+        <div class="test-card-meta">
+          ${t.category ? `<span class="badge badge-blue">${esc(t.category)}</span>` : ''}
+          <span class="badge badge-yellow">⏱ ${Math.round(t.time_limit / 60)} хв</span>
+          <span class="badge badge-green">▶ Почати</span>
+        </div>
+      </div>`).join('');
+  }
+
+  function onSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      loadTests(document.getElementById('search-input').value.trim());
+    }, 350);
+  }
+
+  // ── Test Info Modal ────────────────────────────────────────────
+  async function openTestInfo(id) {
+    const t = await api.getTest(id);
+    selectedTestId = id;
+
+    document.getElementById('info-title').textContent    = t.title;
+    document.getElementById('info-category').textContent = t.category || '—';
+    document.getElementById('info-desc').textContent     = t.description || 'Опис відсутній';
+    document.getElementById('info-time').textContent     = Math.round(t.time_limit / 60) + ' хвилин';
+
+    openModal('modal-test-info');
+  }
+
+  function startTest() {
+    if (!selectedTestId) return;
+    sessionStorage.setItem('quiz_test_id', selectedTestId);
+    location.href = 'quiz.html';
+  }
+
+  // ── History ────────────────────────────────────────────────────
+  async function loadHistory() {
+    // Backend не має окремого ендпоінту "мої результати",
+    // тому рендеримо заглушку з підказкою
+    document.getElementById('history-body').innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">📊</div>
+        <h3>Результати зберігаються після кожного тесту</h3>
+        <p>Пройдіть тест, щоб побачити свій результат тут</p>
+      </div>`;
+  }
+</script>
+</body>
+</html>

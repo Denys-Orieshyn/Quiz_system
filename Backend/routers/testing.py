@@ -2,7 +2,7 @@ import random
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-import Backend.models, Backend.schemas, Backend.crud
+import models, schemas, crud
 from security import require_student
 
 router = APIRouter(prefix="/testing", tags=["testing"])
@@ -11,23 +11,24 @@ router = APIRouter(prefix="/testing", tags=["testing"])
 def start_test(
     test_id: int,
     db: Session = Depends(get_db),
-    student = Depends(require_student)
+    student = Depends(require_student) # Доступ має тільки студент
 ):
     test = crud.get_test_by_id(db, test_id)
     if not test or not test.is_active:
         raise HTTPException(404, "Тест не знайдено")
 
     questions = test.questions
+    # Змішуємо варіанти відповідей, щоб у кожного студента вони були в різному порядку
     for q in questions:
         random.shuffle(q.answers)  # перемішуємо відповіді
-    # schemas.AnswerOut НЕ містить is_correct — безпека забезпечена схемою
+    # Повертаємо питання. schemas.QuestionOut автоматично приховає поле is_correct
     return questions
 
 
 @router.post("/submit/{test_id}", response_model=schemas.ResultOut)
 def submit_test(
     test_id: int,
-    body: schemas.SubmitRequest,
+    body: schemas.SubmitRequest, # JSON від студента (що він обрав)
     db: Session = Depends(get_db),
     student = Depends(require_student)
 ):

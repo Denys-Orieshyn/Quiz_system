@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quiz System — Тестування</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<div class="quiz-page" id="quiz-page">
+
+  <!-- HEADER -->
+  <header class="quiz-header">
+    <div>
+      <div class="quiz-test-title" id="quiz-title">Завантаження…</div>
+      <div class="text-muted text-sm" id="quiz-subtitle"></div>
+    </div>
+    <div class="timer" id="timer">⏱ --:--</div>
+  </header>
+
+  <!-- PROGRESS -->
+  <div class="quiz-progress">
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+    <div class="progress-text" id="progress-text">Питання 0 з 0</div>
+  </div>
+
+  <!-- QUESTIONS BODY -->
+  <div class="quiz-body" id="quiz-body">
+    <div class="empty"><div class="empty-icon">⏳</div><h3>Завантаження питань…</h3></div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="quiz-footer">
+    <button class="btn btn-outline" onclick="confirmFinish()">
+      ⏹ Завершити достроково
+    </button>
+    <div class="text-muted text-sm" id="answered-count">Відповідей: 0</div>
+  </footer>
+</div>
+
+<!-- RESULT screen (hidden initially) -->
+<div id="result-screen" style="display:none" class="quiz-page">
+  <header class="quiz-header">
+    <div class="quiz-test-title">Результат тесту</div>
+    <button class="btn btn-outline btn-sm" onclick="location.href='student.html'">
+      ← До списку тестів
+    </button>
+  </header>
+  <div class="result-wrap">
+    <div class="result-card">
+      <div class="result-icon" id="result-icon">🎉</div>
+      <div class="result-score" id="result-score"></div>
+      <div class="result-label" id="result-label"></div>
+      <div class="result-detail" id="result-detail"></div>
+      <div style="margin-top:1.5rem;display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="location.href='student.html'">
+          ← До тестів
+        </button>
+        <button class="btn btn-outline" onclick="location.reload()">
+          🔄 Пройти ще раз
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toasts"></div>
+
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+  guardRole('student');
+
+  // ── State ──────────────────────────────────────────────────────
+  const testId   = parseInt(sessionStorage.getItem('quiz_test_id') || '0');
+  let questions  = [];
+  let answers    = {};   // { question_id: answer_id }
+  let timerSec   = 0;
+  let timerInt   = null;
+  let submitted  = false;
+
+  if (!testId) { location.href = 'student.html'; }
+
+  // ── Init ───────────────────────────────────────────────────────
+  (async () => {
+    try {
+      const testInfo = await api.getTest(testId);
+      document.getElementById('quiz-title').textContent    = testInfo.title;
+      document.getElementById('quiz-subtitle').textContent = testInfo.category || '';
+      timerSec = testInfo.time_limit;
+
+      questions = await api.startTest(testId);
+      if (!questions.length) {
+        toast('У цьому тесті ще немає питань', 'error');
+        setTimeout(() => location.href = 'student.html', 2000);
+        return;
+      }
+
+      renderQuestions();
+      startTimer();
+    } catch(e) {
+      toast('Помилка завантаження тесту: ' + e.message, 'error');
+    }
+  })();
+
+  // ── Render all questions ────────────────────────────────────────
+  function renderQuestions() {
+    const body = document.getElementById('quiz-body');
+    body.innerHTML = questions.map((q, qi) => `
+      <div class="question-card" id="qcard-${q.id}">
+        <div class="q-number">Питання ${qi + 1} з ${questions.length}</div>
+        <div class="q-text">${esc(q.text)}</div>
+        <div class="answers-list">
+          ${q.answers.map(a => `
+            <label class="answer-opt" id="opt-${a.id}" for="radio-${a.id}">
+              <input type="radio"
+                     id="radio-${a.id}"
+                     name="q-${q.id}"
+                     value="${a.id}"
+                     onchange="selectAnswer(${q.id}, ${a.id})"/>
+              <label for="radio-${a.id}">${esc(a.text)}</label>
+            </label>`).join('')}
+        </div>
+      </div>`).join('');
+
+    updateProgress();
+  }
+
+  // ── Select answer ──────────────────────────────────────────────
+  function selectAnswer(qId, aId) {
+    answers[qId] = aId;
+
+    // highlight selected
+    const q = questions.find(q => q.id === qId);
+    q.answers.forEach(a => {
+      document.getElementById(`opt-${a.id}`)?.classList.remove('selected');
+    });
+    document.getElementById(`opt-${aId}`)?.classList.add('selected');
+
+    updateProgress();
+  }
+
+  function updateProgress() {
+    const answered = Object.keys(answers).length;
+    const total    = questions.length;
+    const pct      = total ? Math.round(answered / total * 100) : 0;
+
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('progress-text').textContent =
+      `Відповідей: ${answered} з ${total}`;
+    document.getElementById('answered-count').textContent =
+      `Відповідей: ${answered} з ${total}`;
+  }
+
+  // ── Timer ──────────────────────────────────────────────────────
+  function startTimer() {
+    updateTimerDisplay();
+    timerInt = setInterval(() => {
+      timerSec--;
+      updateTimerDisplay();
+      if (timerSec <= 0) {
+        clearInterval(timerInt);
+        toast('Час вийшов! Відповіді надсилаються…', 'warning');
+        submitAnswers();
+      }
+    }, 1000);
+  }
+
+  function updateTimerDisplay() {
+    const m   = Math.floor(timerSec / 60).toString().padStart(2, '0');
+    const s   = (timerSec % 60).toString().padStart(2, '0');
+    const el  = document.getElementById('timer');
+    el.textContent = `⏱ ${m}:${s}`;
+
+    el.classList.remove('warn', 'danger');
+    if (timerSec <= 60)  el.classList.add('danger');
+    else if (timerSec <= 180) el.classList.add('warn');
+  }
+
+  // ── Submit ─────────────────────────────────────────────────────
+  function confirmFinish() {
+    const answered = Object.keys(answers).length;
+    const total    = questions.length;
+    const unanswered = total - answered;
+
+    if (unanswered > 0) {
+      if (!confirm(`Ви відповіли на ${answered} з ${total} питань.\n${unanswered} питань без відповіді.\n\nЗавершити тест?`)) return;
+    } else {
+      if (!confirm('Завершити тест і надіслати відповіді?')) return;
+    }
+    submitAnswers();
+  }
+
+  async function submitAnswers() {
+    if (submitted) return;
+    submitted = true;
+    clearInterval(timerInt);
+
+    const payload = Object.entries(answers).map(([qId, aId]) => ({
+      question_id: parseInt(qId),
+      selected_answer_id: parseInt(aId),
+    }));
+
+    try {
+      const result = await api.submitTest(testId, payload);
+      showResult(result);
+    } catch(e) {
+      toast('Помилка надсилання: ' + e.message, 'error');
+      submitted = false;
+    }
+  }
+
+  // ── Show Result ────────────────────────────────────────────────
+  function showResult(result) {
+    document.getElementById('quiz-page').style.display    = 'none';
+    document.getElementById('result-screen').style.display = '';
+
+    const score = result.score_percent;
+    const scoreEl = document.getElementById('result-score');
+    scoreEl.textContent = score + '%';
+    scoreEl.className   = 'result-score ' +
+      (score >= 70 ? 'score-high' : score >= 50 ? 'score-mid' : 'score-low');
+
+    const icon  = score >= 70 ? '🎉' : score >= 50 ? '👍' : '📚';
+    const label = score >= 70 ? 'Відмінний результат!'
+                : score >= 50 ? 'Непоганий результат'
+                : 'Варто повторити матеріал';
+
+    document.getElementById('result-icon').textContent  = icon;
+    document.getElementById('result-label').textContent = label;
+    document.getElementById('result-detail').textContent =
+      `Правильних відповідей: ${Math.round(score / 100 * questions.length)} з ${questions.length}`;
+  }
+</script>
+</body>
+</html>
