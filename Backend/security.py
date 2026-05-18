@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from database import get_db, settings
+from datetime import timezone
 import models
 
 # Налаштовуємо алгоритм хешування bcrypt (він дуже надійний)
@@ -23,7 +24,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def create_jwt_token(data: dict) -> str:
     # Задаємо час, коли токен "згорить" (через 60 хвилин)
-    expire = datetime.utcnow() + timedelta(
+    expire = datetime.now(timezone.utc)  + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     # Шифруємо дані (ID юзера і роль) за допомогою секретного ключа
     return jwt.encode(

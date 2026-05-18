@@ -7,45 +7,72 @@ from security import require_student
 
 router = APIRouter(prefix="/testing", tags=["testing"])
 
+
 @router.get("/start/{test_id}", response_model=list[schemas.QuestionOut])
 def start_test(
     test_id: int,
     db: Session = Depends(get_db),
-    student = Depends(require_student) # Доступ має тільки студент
+    student=Depends(require_student)
 ):
     test = crud.get_test_by_id(db, test_id)
     if not test or not test.is_active:
         raise HTTPException(404, "Тест не знайдено")
 
     questions = test.questions
-    # Змішуємо варіанти відповідей, щоб у кожного студента вони були в різному порядку
+    # Перемішуємо варіанти відповідей для кожного питання
+    # is_correct НЕ потрапить до клієнта — це визначено схемою AnswerOut
     for q in questions:
-        random.shuffle(q.answers)  # перемішуємо відповіді
-    # Повертаємо питання. schemas.QuestionOut автоматично приховає поле is_correct
+        random.shuffle(q.answers)
+
     return questions
 
 
 @router.post("/submit/{test_id}", response_model=schemas.ResultOut)
 def submit_test(
     test_id: int,
-    body: schemas.SubmitRequest, # JSON від студента (що він обрав)
+    body: schemas.SubmitRequest,
     db: Session = Depends(get_db),
-    student = Depends(require_student)
+    student=Depends(require_student)
 ):
     test = crud.get_test_by_id(db, test_id)
     if not test:
         raise HTTPException(404, "Тест не знайдено")
 
-    correct_ids = {
-        a.id
-        for q in test.questions
-        for a in q.answers
-        if a.is_correct
+    # Будуємо словник: { question_id -> selected_answer_id }
+    # для швидкого пошуку відповіді студента по кожному питанню
+    student_answers = {
+        ans.question_id: ans.selected_answer_id
+        for ans in body.answers
     }
 
-    selected_ids = {ans.selected_answer_id for ans in body.answers}
-    correct_count = len(correct_ids & selected_ids)
-    total = len(test.questions)
-    score = round(correct_count / total * 100, 1) if total > 0 else 0.0
+    questions = test.questions
+    total = len(questions)
+
+    if total == 0:
+        score = 0.0
+    else:
+        correct_questions = 0
+
+        for question in questions:
+            selected_id = student_answers.get(question.id)
+
+            # Якщо студент не відповів на питання — питання зараховується як неправильне
+            if selected_id is None:
+                continue
+
+            # Знаходимо обрану відповідь серед варіантів цього питання
+            selected_answer = next(
+                (a for a in question.answers if a.id == selected_id),
+                None
+            )
+
+            # Питання вважається правильно відповіденим,
+            # якщо обрана відповідь є правильною (is_correct == True)
+            if selected_answer and selected_answer.is_correct:
+                correct_questions += 1
+
+        # Бал = кількість правильно відповіджених питань / загальна кількість питань
+        # Формула працює ЗАВЖДИ коректно, незалежно від кількості правильних варіантів
+        score = round(correct_questions / total * 100, 1)
 
     return crud.save_result(db, student.id, test_id, score)
