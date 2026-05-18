@@ -1,3 +1,9 @@
+"""Repository layer для роботи з базою даних.
+
+Роутери викликають ці функції замість того, щоб напряму тримати всю
+SQLAlchemy-логіку всередині controller-шару.
+"""
+
 from sqlalchemy.orm import Session, selectinload
 import models, schemas, security
 

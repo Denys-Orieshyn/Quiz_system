@@ -1,3 +1,9 @@
+"""API-роутер проходження тестів студентом.
+
+Відповідає за старт тесту, перемішування відповідей без передачі
+`is_correct` клієнту та підрахунок фінального відсоткового результату.
+"""
+
 import random
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session

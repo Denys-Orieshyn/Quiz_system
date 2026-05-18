@@ -1,3 +1,9 @@
+"""Точка входу FastAPI-застосунку Quiz System.
+
+У цьому файлі створюється об'єкт `app`, підключаються middleware,
+реєструються роутери та виконується базова ініціалізація таблиць.
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base

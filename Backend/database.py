@@ -1,3 +1,9 @@
+"""Налаштування підключення до PostgreSQL через SQLAlchemy.
+
+Файл відповідає за читання змінних середовища, створення engine,
+фабрики сесій та залежності `get_db()` для FastAPI endpoints.
+"""
+
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker

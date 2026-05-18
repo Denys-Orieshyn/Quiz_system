@@ -2,6 +2,8 @@
 // api.js — усі запити до Backend FastAPI
 // ============================================================
 
+// Frontend працює через Nginx: усі запити з `/api/*`
+// проксіюються до FastAPI backend-контейнера.
 const API = '/api';
 
 // ── Базовий запит ─────────────────────────────────────────────
@@ -11,6 +13,7 @@ async function request(method, path, body = null, auth = true) {
     if (auth) {
         const token = Auth.getToken();
         if (!token) { Auth.logout(); return null; }
+        // JWT передається у стандартному Bearer-заголовку.
         headers['Authorization'] = `Bearer ${token}`;
     }
 
@@ -19,6 +22,7 @@ async function request(method, path, body = null, auth = true) {
 
     const res = await fetch(`${API}${path}`, opts);
 
+    // Якщо токен протермінований або невалідний, повертаємо користувача на логін.
     if (res.status === 401) { Auth.logout(); return null; }
 
     if (!res.ok) {

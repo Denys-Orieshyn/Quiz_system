@@ -7,7 +7,7 @@
 -- ============================================================
 
 -- Встановлюємо часовий пояс
-SET timezone = 'Europe/Kiev';
+SET timezone = 'Europe/Kyiv';
 
 -- Розширення для генерації UUID (опційно, на майбутнє)
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";

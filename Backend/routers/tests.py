@@ -1,3 +1,9 @@
+"""API-роутер керування тестами.
+
+Містить endpoints для перегляду тестів, CRUD-операцій викладача,
+додавання питань і перегляду статистики проходжень.
+"""
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional

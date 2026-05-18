@@ -1,3 +1,9 @@
+"""API-роутер користувачів.
+
+Відповідає за реєстрацію, логін через OAuth2 form-data та отримання
+інформації про поточного користувача.
+"""
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session

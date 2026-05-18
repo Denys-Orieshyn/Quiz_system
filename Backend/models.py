@@ -1,3 +1,9 @@
+"""SQLAlchemy-моделі бази даних.
+
+Класи нижче описують структуру таблиць, зв'язки між ними та каскадне
+видалення для основних сутностей системи тестування.
+"""
+
 from sqlalchemy import Column, Integer, String, Boolean, Float
 from sqlalchemy import ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship

@@ -1,3 +1,9 @@
+"""Pydantic-схеми для валідації вхідних і вихідних даних API.
+
+Схеми відокремлюють внутрішні моделі БД від JSON, який отримує або
+надсилає клієнт. Саме тут приховується `is_correct` від студентів.
+"""
+
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from typing import Optional

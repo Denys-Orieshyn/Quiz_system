@@ -1,4 +1,5 @@
 services:
+  # PostgreSQL зберігає користувачів, тести, питання, відповіді та результати.
   db:
     image: postgres:15
     env_file: .env
@@ -7,12 +8,14 @@ services:
       - ./Database/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
+    # Backend стартує тільки після того, як PostgreSQL реально готовий приймати підключення.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 10
 
+  # FastAPI backend із REST API та бізнес-логікою тестування.
   backend:
     build: ./Backend
     env_file: .env
@@ -23,12 +26,14 @@ services:
         condition: service_healthy
     volumes:
       - ./Backend:/app
+    # Frontend стартує після того, як backend відповідає на health endpoint.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/').read()"]
       interval: 5s
       timeout: 5s
       retries: 10
 
+  # Nginx віддає статичний frontend і проксіює `/api/*` на backend.
   frontend:
     build: ./FrontEnd
     ports:

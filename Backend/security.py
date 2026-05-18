@@ -1,3 +1,9 @@
+"""Функції безпеки: хешування паролів, JWT та перевірка ролей.
+
+Тут зібрана логіка автентифікації й авторизації, щоб роутери залишались
+короткими та читабельними.
+"""
+
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext

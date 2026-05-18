@@ -4,6 +4,7 @@
 
 // ── Auth guard ────────────────────────────────────────────────
 function guardRole(required) {
+  // Захист сторінок на рівні UI. Остаточна перевірка все одно відбувається на backend.
   if (!Auth.isLoggedIn()) {
     location.href = 'index.html';
     return;
@@ -52,6 +53,7 @@ function toast(message, type = 'info', duration = 3500) {
   el.className = `toast ${type}`;
 
   const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  // Не використовуємо innerHTML для тексту повідомлення, щоб не відкривати XSS.
   const icon = document.createElement('span');
   icon.style.marginRight = '.5rem';
   icon.textContent = icons[type] || 'ℹ️';
@@ -66,6 +68,7 @@ function toast(message, type = 'info', duration = 3500) {
 
 // ── Sanitize HTML (захист від XSS) ───────────────────────────
 function esc(str) {
+  // Екрануємо користувацький текст перед вставкою в HTML-шаблони.
   if (!str) return '';
   return String(str)
     .replace(/&/g, '&amp;')
