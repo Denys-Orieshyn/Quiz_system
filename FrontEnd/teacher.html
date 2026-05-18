@@ -228,7 +228,7 @@
                   </td>
                   <td>
                     <div class="flex gap-1">
-                      <button class="btn btn-outline btn-sm" onclick="openQuestionsModal(${t.id}, '${esc(t.title)}')">✏️ Питання</button>
+                      <button class="btn btn-outline btn-sm" onclick="openQuestionsModal(${t.id})">✏️ Питання</button>
                       <button class="btn btn-outline btn-sm" onclick="openEditTest(${t.id})">🔧 Ред.</button>
                       <button class="btn btn-outline btn-sm" onclick="toggleTest(${t.id})">${t.is_active ? '🙈 Сховати' : '👁 Показати'}</button>
                       <button class="btn btn-danger  btn-sm" onclick="deleteTest(${t.id})">🗑</button>
@@ -301,9 +301,10 @@
   }
 
   // ── Questions Modal ────────────────────────────────────────────
-  async function openQuestionsModal(testId, testName) {
+  async function openQuestionsModal(testId) {
     currentQTestId = testId;
-    document.getElementById('q-modal-test-name').textContent = testName;
+    const test = await api.getTest(testId);
+    document.getElementById('q-modal-test-name').textContent = test.title;
     resetQuestionForm();
     await renderQuestionsList(testId);
     openModal('modal-questions');

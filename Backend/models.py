@@ -34,7 +34,7 @@ class Test(Base):
     created_at  = Column(DateTime, server_default=func.now())
 
     author      = relationship("User", back_populates="tests")
-    questions   = relationship("Question", back_populates="test", cascade="all, delete")
+    questions   = relationship("Question", back_populates="test", cascade="all, delete", order_by="Question.order_number")
     results     = relationship("TestResult", back_populates="test", cascade="all, delete")
 
 

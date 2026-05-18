@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 import models, schemas, security
 
 # ── USERS ─────────────────────────────────
@@ -26,7 +26,9 @@ def get_all_active_tests(db: Session, search: str = ""):
     return q.all()
 
 def get_test_by_id(db: Session, test_id: int):
-    return db.query(models.Test).filter(models.Test.id == test_id).first()
+    return db.query(models.Test).options(
+        selectinload(models.Test.questions).selectinload(models.Question.answers)
+    ).filter(models.Test.id == test_id).first()
 
 def create_test(db: Session, data: schemas.TestCreate, user_id: int):
     # **data.model_dump() розпаковує словник у параметри (title=..., description=...)
@@ -76,6 +78,8 @@ def save_result(db: Session, user_id: int,
 
 def get_results_by_test(db: Session, test_id: int):
     # Повертає результати, відсортовані від найвищого балу до найнижчого
-    return db.query(models.TestResult).filter(
+    return db.query(models.TestResult).options(
+        selectinload(models.TestResult.student)
+    ).filter(
         models.TestResult.test_id == test_id
     ).order_by(models.TestResult.score_percent.desc()).all()

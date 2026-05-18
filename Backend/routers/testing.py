@@ -35,15 +35,14 @@ def submit_test(
     student=Depends(require_student)
 ):
     test = crud.get_test_by_id(db, test_id)
-    if not test:
+    if not test or not test.is_active:
         raise HTTPException(404, "Тест не знайдено")
 
-    # Будуємо словник: { question_id -> selected_answer_id }
-    # для швидкого пошуку відповіді студента по кожному питанню
-    student_answers = {
-        ans.question_id: ans.selected_answer_id
-        for ans in body.answers
-    }
+    # Будуємо словник: { question_id -> selected_answer_ids }
+    # для швидкого пошуку відповідей студента по кожному питанню
+    student_answers: dict[int, set[int]] = {}
+    for ans in body.answers:
+        student_answers.setdefault(ans.question_id, set()).update(ans.selected_ids())
 
     questions = test.questions
     total = len(questions)
@@ -54,21 +53,21 @@ def submit_test(
         correct_questions = 0
 
         for question in questions:
-            selected_id = student_answers.get(question.id)
+            selected_ids = student_answers.get(question.id, set())
 
             # Якщо студент не відповів на питання — питання зараховується як неправильне
-            if selected_id is None:
+            if not selected_ids:
                 continue
 
-            # Знаходимо обрану відповідь серед варіантів цього питання
-            selected_answer = next(
-                (a for a in question.answers if a.id == selected_id),
-                None
-            )
+            # Знаходимо всі правильні відповіді серед варіантів цього питання
+            correct_answer_ids = {
+                a.id for a in question.answers
+                if a.is_correct
+            }
 
             # Питання вважається правильно відповіденим,
-            # якщо обрана відповідь є правильною (is_correct == True)
-            if selected_answer and selected_answer.is_correct:
+            # якщо обрано рівно всі правильні відповіді без зайвих варіантів
+            if selected_ids == correct_answer_ids:
                 correct_questions += 1
 
         # Бал = кількість правильно відповіджених питань / загальна кількість питань

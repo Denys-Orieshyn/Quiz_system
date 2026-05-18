@@ -78,7 +78,7 @@
   // ── State ──────────────────────────────────────────────────────
   const testId   = parseInt(sessionStorage.getItem('quiz_test_id') || '0');
   let questions  = [];
-  let answers    = {};   // { question_id: answer_id }
+  let answers    = {};   // { question_id: [answer_id, ...] }
   let timerSec   = 0;
   let timerInt   = null;
   let submitted  = false;
@@ -116,13 +116,13 @@
         <div class="q-text">${esc(q.text)}</div>
         <div class="answers-list">
           ${q.answers.map(a => `
-            <label class="answer-opt" id="opt-${a.id}" for="radio-${a.id}">
-              <input type="radio"
-                     id="radio-${a.id}"
+            <label class="answer-opt" id="opt-${a.id}" for="answer-${a.id}">
+              <input type="checkbox"
+                     id="answer-${a.id}"
                      name="q-${q.id}"
                      value="${a.id}"
-                     onchange="selectAnswer(${q.id}, ${a.id})"/>
-              <label for="radio-${a.id}">${esc(a.text)}</label>
+                     onchange="toggleAnswer(${q.id}, ${a.id}, this.checked)"/>
+              <span>${esc(a.text)}</span>
             </label>`).join('')}
         </div>
       </div>`).join('');
@@ -131,15 +131,15 @@
   }
 
   // ── Select answer ──────────────────────────────────────────────
-  function selectAnswer(qId, aId) {
-    answers[qId] = aId;
+  function toggleAnswer(qId, aId, checked) {
+    const selected = new Set(answers[qId] || []);
+    if (checked) selected.add(aId);
+    else selected.delete(aId);
 
-    // highlight selected
-    const q = questions.find(q => q.id === qId);
-    q.answers.forEach(a => {
-      document.getElementById(`opt-${a.id}`)?.classList.remove('selected');
-    });
-    document.getElementById(`opt-${aId}`)?.classList.add('selected');
+    if (selected.size) answers[qId] = Array.from(selected);
+    else delete answers[qId];
+
+    document.getElementById(`opt-${aId}`)?.classList.toggle('selected', checked);
 
     updateProgress();
   }
@@ -200,9 +200,9 @@
     submitted = true;
     clearInterval(timerInt);
 
-    const payload = Object.entries(answers).map(([qId, aId]) => ({
+    const payload = Object.entries(answers).map(([qId, answerIds]) => ({
       question_id: parseInt(qId),
-      selected_answer_id: parseInt(aId),
+      selected_answer_ids: answerIds.map(id => parseInt(id)),
     }));
 
     try {

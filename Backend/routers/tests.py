@@ -142,8 +142,9 @@ def delete_question(
     db: Session = Depends(get_db),
     teacher=Depends(require_teacher)
 ):
-    q = db.query(models.Question).filter(
-        models.Question.id == question_id
+    q = db.query(models.Question).join(models.Test).filter(
+        models.Question.id == question_id,
+        models.Test.created_by == teacher.id
     ).first()
     if not q:
         raise HTTPException(404, "Питання не знайдено")

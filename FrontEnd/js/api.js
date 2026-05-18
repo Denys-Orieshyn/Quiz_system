@@ -2,7 +2,7 @@
 // api.js — усі запити до Backend FastAPI
 // ============================================================
 
-const API = 'http://localhost:8000';
+const API = '/api';
 
 // ── Базовий запит ─────────────────────────────────────────────
 async function request(method, path, body = null, auth = true) {

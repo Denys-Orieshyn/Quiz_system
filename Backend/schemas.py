@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from typing import Optional
 
@@ -79,10 +79,18 @@ class QuestionOut(BaseModel):
 
 
 # ── SUBMIT (Відправка відповідей) ──────────
-# Формат: яке питання і який варіант обрав студент
+# Формат: яке питання і які варіанти обрав студент
 class SubmitAnswer(BaseModel):
     question_id: int
-    selected_answer_id: int
+    selected_answer_id: Optional[int] = None
+    selected_answer_ids: list[int] = Field(default_factory=list)
+
+    def selected_ids(self) -> set[int]:
+        if self.selected_answer_ids:
+            return set(self.selected_answer_ids)
+        if self.selected_answer_id is not None:
+            return {self.selected_answer_id}
+        return set()
 
 
 class SubmitRequest(BaseModel):

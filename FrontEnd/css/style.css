@@ -386,8 +386,8 @@ tbody tr:hover td { background: #f8fafc; }
 .answer-opt:hover { border-color: var(--primary); background: var(--primary-light); }
 .answer-opt.selected { border-color: var(--primary); background: var(--primary-light); }
 
-.answer-opt input[type="radio"] { accent-color: var(--primary); width: 16px; height: 16px; flex-shrink: 0; }
-.answer-opt label { cursor: pointer; font-size: .93rem; flex: 1; }
+.answer-opt input[type="checkbox"] { accent-color: var(--primary); width: 16px; height: 16px; flex-shrink: 0; }
+.answer-opt span { cursor: pointer; font-size: .93rem; flex: 1; }
 
 .quiz-footer {
     background: var(--white); border-top: 1px solid var(--border);

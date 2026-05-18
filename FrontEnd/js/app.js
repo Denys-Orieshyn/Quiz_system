@@ -52,7 +52,10 @@ function toast(message, type = 'info', duration = 3500) {
   el.className = `toast ${type}`;
 
   const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
-  el.innerHTML = `<span style="margin-right:.5rem">${icons[type] || 'ℹ️'}</span>${message}`;
+  const icon = document.createElement('span');
+  icon.style.marginRight = '.5rem';
+  icon.textContent = icons[type] || 'ℹ️';
+  el.append(icon, document.createTextNode(message));
 
   container.appendChild(el);
   setTimeout(() => {
