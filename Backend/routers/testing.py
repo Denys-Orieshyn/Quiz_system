@@ -81,3 +81,19 @@ def submit_test(
         score = round(correct_questions / total * 100, 1)
 
     return crud.save_result(db, student.id, test_id, score)
+
+@router.get("/my-results")
+def get_my_results(
+    db: Session = Depends(get_db),
+    student=Depends(require_student)
+):
+    """Повертає всі результати тестувань поточного студента."""
+    results = crud.get_results_by_user(db, student.id)
+    return [
+        {
+            "test_title":    r.test.title,
+            "score_percent": r.score_percent,
+            "completed_at":  r.completed_at.isoformat()
+        }
+        for r in results
+    ]

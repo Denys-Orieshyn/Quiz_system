@@ -153,7 +153,7 @@
 
     const tests = await api.getTests(search);
 
-    if (!tests.length) {
+    if (!tests || !tests.length) {
       grid.innerHTML = `<div class="empty">
         <div class="empty-icon">📭</div>
         <h3>Тестів не знайдено</h3>
@@ -200,16 +200,57 @@
     location.href = 'quiz.html';
   }
 
-  // ── History ────────────────────────────────────────────────────
+  // ── History (Мої результати) ───────────────────────────────────
   async function loadHistory() {
-    // Backend не має окремого ендпоінту "мої результати",
-    // тому рендеримо заглушку з підказкою
-    document.getElementById('history-body').innerHTML = `
-      <div class="empty">
-        <div class="empty-icon">📊</div>
-        <h3>Результати зберігаються після кожного тесту</h3>
-        <p>Пройдіть тест, щоб побачити свій результат тут</p>
+    const el = document.getElementById('history-body');
+    el.innerHTML = `<div class="empty"><div class="empty-icon">⏳</div>
+                    <h3>Завантаження…</h3></div>`;
+    try {
+      const results = await api.getMyResults();
+
+      if (!results || !results.length) {
+        el.innerHTML = `<div class="empty">
+          <div class="empty-icon">📊</div>
+          <h3>Результатів ще немає</h3>
+          <p>Пройдіть тест, щоб побачити свій результат тут</p>
+        </div>`;
+        return;
+      }
+
+      el.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Назва тесту</th>
+                <th>Результат</th>
+                <th>Дата проходження</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${results.map((r, i) => {
+                const cls = r.score_percent >= 70 ? 'score-cell-high'
+                          : r.score_percent >= 50 ? 'score-cell-mid'
+                          : 'score-cell-low';
+                return `<tr>
+                  <td>${i + 1}</td>
+                  <td><b>${esc(r.test_title)}</b></td>
+                  <td class="${cls}">${r.score_percent}%</td>
+                  <td>${new Date(r.completed_at).toLocaleString('uk-UA')}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    } catch(e) {
+      el.innerHTML = `<div class="empty">
+        <div class="empty-icon">⚠️</div>
+        <h3>Помилка завантаження</h3>
+        <p>${esc(e.message)}</p>
       </div>`;
+      toast('Помилка завантаження результатів', 'error');
+    }
   }
 </script>
 </body>

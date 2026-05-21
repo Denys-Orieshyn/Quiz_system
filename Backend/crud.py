@@ -83,9 +83,18 @@ def save_result(db: Session, user_id: int,
     return result
 
 def get_results_by_test(db: Session, test_id: int):
+    """Результати конкретного тесту — для викладача."""
     # Повертає результати, відсортовані від найвищого балу до найнижчого
     return db.query(models.TestResult).options(
         selectinload(models.TestResult.student)
     ).filter(
         models.TestResult.test_id == test_id
     ).order_by(models.TestResult.score_percent.desc()).all()
+
+def get_results_by_user(db: Session, user_id: int):
+    """Усі результати конкретного студента — для вкладки 'Мої результати'."""
+    return db.query(models.TestResult).options(
+        selectinload(models.TestResult.test)
+    ).filter(
+        models.TestResult.user_id == user_id
+    ).order_by(models.TestResult.completed_at.desc()).all()

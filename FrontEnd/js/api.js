@@ -80,4 +80,5 @@ const api = {
     // Testing (студент)
     startTest:  (testId)         => request('GET',  `/testing/start/${testId}`),
     submitTest: (testId, answers) => request('POST', `/testing/submit/${testId}`, { answers }),
+    getMyResults: () => request('GET', '/testing/my-results'),
 };
